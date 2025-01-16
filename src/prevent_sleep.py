@@ -6,6 +6,10 @@ import time
 from datetime import datetime
 import sys
 
+# 设置 PyAutoGUI 的安全设置
+pyautogui.FAILSAFE = False  # 禁用 fail-safe
+pyautogui.PAUSE = 0.1  # 设置操作间隔时间
+
 class PreventSleepApp:
     def __init__(self, root):
         self.root = root
@@ -93,11 +97,27 @@ class PreventSleepApp:
         """监控任务的具体实现"""
         try:
             while self.is_monitoring:
-                # 移动鼠标（在原位置附近小幅度移动）
-                pyautogui.moveRel(5, 0, duration=0.1)  # 向右移动5像素
-                pyautogui.moveRel(-5, 0, duration=0.1)  # 移回原位
-                
-                self.log_message("鼠标移动完成，等待下一次移动...")
+                try:
+                    # 获取当前鼠标位置
+                    current_x, current_y = pyautogui.position()
+                    
+                    # 检查鼠标是否在屏幕边缘
+                    screen_width, screen_height = pyautogui.size()
+                    if (current_x <= 5 or current_x >= screen_width - 5 or 
+                        current_y <= 5 or current_y >= screen_height - 5):
+                        self.log_message("鼠标在屏幕边缘，跳过本次移动")
+                        continue
+                    
+                    # 移动鼠标（在原位置附近小幅度移动）
+                    pyautogui.moveRel(5, 0, duration=0.1)  # 向右移动5像素
+                    pyautogui.moveRel(-5, 0, duration=0.1)  # 移回原位
+                    
+                    self.log_message("鼠标移动完成，等待下一次移动...")
+                    
+                except pyautogui.FailSafeException:
+                    self.log_message("检测到鼠标在屏幕角落，跳过本次移动")
+                except Exception as e:
+                    self.log_message(f"鼠标移动时发生错误: {str(e)}")
                 
                 # 等待1分钟
                 for _ in range(60):
@@ -106,7 +126,7 @@ class PreventSleepApp:
                     time.sleep(1)
                     
         except Exception as e:
-            self.log_message(f"发生错误: {str(e)}")
+            self.log_message(f"监控任务发生错误: {str(e)}")
             self.stop_monitoring()
     
     def on_closing(self):
